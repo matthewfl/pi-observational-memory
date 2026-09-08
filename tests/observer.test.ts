@@ -204,6 +204,7 @@ describe("runObserver", () => {
 		const prompts: string[] = [];
 		const reasonings: unknown[] = [];
 		const contextMessages: any[][] = [];
+		const llmMessages: any[][] = [];
 		const loop = ((input: any[], context: any, config: any) => ({
 			async *[Symbol.asyncIterator]() {},
 			result: async () => {
@@ -211,7 +212,8 @@ describe("runObserver", () => {
 				prompts.push(input[0].content[0].text);
 				reasonings.push(config.reasoning);
 				contextMessages.push(context.messages);
-				if (invocation === 1) return [{ role: "assistant", content: [{ type: "text", text: "partial analysis" }], stopReason: "length" }];
+				llmMessages.push(config.convertToLlm([...context.messages, ...input]));
+				if (invocation === 1) return [{ role: "assistant", content: [{ type: "thinking", thinking: "partial analysis" }], stopReason: "length" }];
 				await context.tools.find((tool: any) => tool.name === "record_observations").execute("record", {
 					observations: [{ timestamp: "2026-05-02 10:30", content: "Recovered after length", relevance: "medium", sourceEntryIds: ["entry-a"] }],
 				});
@@ -228,6 +230,8 @@ describe("runObserver", () => {
 		expect(contextMessages[1]).toEqual(expect.arrayContaining([
 			expect.objectContaining({ role: "assistant", stopReason: "length" }),
 		]));
+		expect(JSON.stringify(llmMessages[1])).toContain("[Incomplete analysis from the preceding truncated response]\\npartial analysis");
+		expect(llmMessages[1].flatMap((message: any) => message.role === "assistant" ? message.content : []).some((part: any) => part.type === "thinking")).toBe(false);
 		expect(reasonings).toEqual(["high", "minimal"]);
 	});
 

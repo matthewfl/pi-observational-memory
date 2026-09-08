@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { forceRequiredToolPayload, parseSummaryCitations, replayTruncatedThinkingAsText, runSummarizer, SUMMARY_MAX_SOURCE_TOKEN_RATIO } from "../src/agents/summarizer/agent.js";
+import { forceRequiredToolPayload, parseSummaryCitations, runSummarizer, SUMMARY_MAX_SOURCE_TOKEN_RATIO } from "../src/agents/summarizer/agent.js";
+import { replayTruncatedThinkingAsText } from "../src/agents/replay-truncated-thinking.js";
 import { summarizerContinue, SUMMARIZER_SYSTEM } from "../src/agents/summarizer/prompts.js";
 import { hashId } from "../src/ids.js";
 import type { Entry } from "../src/session-ledger/index.js";

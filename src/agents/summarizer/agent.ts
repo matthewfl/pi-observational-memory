@@ -26,6 +26,7 @@ import {
 import { estimateStringTokens } from "../../tokens.js";
 import { createRecallAgentTool } from "../../tools/recall-observation.js";
 import { createSearchMemoriesAgentTool } from "../../tools/search-memories.js";
+import { replayTruncatedThinkingAsText } from "../replay-truncated-thinking.js";
 import { logAgentStreamError } from "../stream-errors.js";
 import { summarizerContinue, SUMMARIZER_SYSTEM } from "./prompts.js";
 import {
@@ -104,27 +105,6 @@ function unique(values: readonly string[]): string[] {
 
 function textResult(text: string, details: Record<string, unknown> = {}, terminate = false) {
 	return { content: [{ type: "text" as const, text }], details, ...(terminate ? { terminate: true } : {}) };
-}
-
-/**
- * Many provider chat templates discard historical reasoning blocks. Preserve
- * unfinished plaintext work after an output-length stop by replaying it as
- * ordinary assistant text; unlike provider-specific thinking metadata, text
- * survives every supported conversation serializer. Redacted/encrypted blocks
- * must remain structured so their opaque provider payload stays replayable.
- * The durable/in-memory transcript remains unchanged—this transformation is
- * only applied at the LLM boundary.
- */
-export function replayTruncatedThinkingAsText(messages: readonly AgentMessage[]): Message[] {
-	return messages.map((message) => {
-		if (message.role !== "assistant" || message.stopReason !== "length" || !message.content.some((part) => part.type === "thinking" && !part.redacted)) return message as Message;
-		return {
-			...message,
-			content: message.content.map((part) => part.type === "thinking" && !part.redacted
-				? { type: "text" as const, text: `[Incomplete analysis from the preceding truncated response]\n${part.thinking}` }
-				: part),
-		} as Message;
-	});
 }
 
 function preview(content: string): string {

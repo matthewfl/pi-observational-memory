@@ -4,6 +4,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { streamSimple } from "@earendil-works/pi-ai/compat";
 import type { Static } from "typebox";
 import { hashId } from "../../ids.js";
+import { replayTruncatedThinkingAsText } from "../replay-truncated-thinking.js";
 import { logAgentStreamError } from "../stream-errors.js";
 import { OBSERVER_AGENT_LOOP_MAX_TOKENS, boundedMaxTokens } from "../../model-budget.js";
 import { OBSERVER_SYSTEM } from "./prompts.js";
@@ -205,7 +206,7 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 		apiKey,
 		headers,
 		maxTokens: boundedMaxTokens(model, OBSERVER_AGENT_LOOP_MAX_TOKENS),
-		convertToLlm: (msgs) => msgs as Message[],
+		convertToLlm: replayTruncatedThinkingAsText,
 		toolExecution: "sequential",
 		shouldStopAfterTurn: () => {
 			turnCount++;
@@ -270,9 +271,11 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 		// maximum. agentLoop stops on `length` when no tool call was completed; it
 		// does not automatically send a continuation request. Preserve the partial
 		// response so the model can continue from work it already performed rather
-		// than paying to reproduce it, then append a short tool-focused instruction
-		// and reduce reasoning to minimal. A second length stop fails forward at the
-		// bounded-chunk level.
+		// than paying to reproduce it. Plaintext thinking is replayed as ordinary
+		// assistant text at the LLM boundary because some provider templates strip
+		// historical reasoning; encrypted thinking retains its opaque structure.
+		// Then append a short tool-focused instruction and reduce reasoning to
+		// minimal. A second length stop fails forward at the bounded-chunk level.
 		terminalFailure = undefined;
 		const retryPrompt: Message = {
 			role: "user",

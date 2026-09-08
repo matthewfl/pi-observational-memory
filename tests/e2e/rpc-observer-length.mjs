@@ -17,18 +17,18 @@ const server = new ModelServer(async (request, res) => {
 	const toolMessages = messages.filter((message) => message.role === "tool");
 
 	// The extension's 160k observer allowance is an upper bound. Pi's provider
-	// request must honor the model's advertised 32k output maximum.
+	// request must honor this provider's smaller advertised 16k output maximum.
 	const requestedMax = request.body.max_tokens ?? request.body.max_completion_tokens;
-	assert(requestedMax === 32_000, `Expected observer max output 32000, got ${JSON.stringify(requestedMax)}`);
+	assert(requestedMax === 16_000, `Expected observer max output 16000, got ${JSON.stringify(requestedMax)}`);
 
 	if (state.observer === 1) {
 		state.firstLength = true;
-		return sendSse(res, { text: "A long unfinished analysis that never called a tool.", finishReason: "length", outputTokens: 32_000 });
+		return sendSse(res, { reasoning: "A long unfinished analysis that never called a tool.", finishReason: "length", outputTokens: 16_000 });
 	}
 
 	if (!state.recorded) {
 		assert(/previous response reached the provider output limit/i.test(request.text), "Observer did not issue the explicit fresh length recovery prompt");
-		assert(messages.some((message) => message.role === "assistant" && JSON.stringify(message).includes("long unfinished analysis")), "Observer recovery discarded the partial assistant work");
+		assert(messages.some((message) => message.role === "assistant" && typeof message.content === "string" && message.content.includes("[Incomplete analysis from the preceding truncated response]\nA long unfinished analysis")), "Observer recovery did not replay partial thinking as portable assistant text");
 		state.freshRetry = true;
 		const sourceId = request.text.match(/Source entry id:\s*([\w-]+)/)?.[1];
 		assert(sourceId, "Observer recovery prompt did not preserve the source entry id");
@@ -50,7 +50,7 @@ try {
 		workspace,
 		port,
 		omSettings({ contemplatorEnabled: false, reviewerEnabled: false, summarizerEnabled: false, compactionObserverEnabled: false }),
-		[{ id: "mock-model", contextWindow: 256_000, maxTokens: 32_000 }],
+		[{ id: "mock-model", contextWindow: 256_000, maxTokens: 16_000 }],
 	);
 	pi = await launchPi(workspace);
 	const before = pi.rpc.events.length;

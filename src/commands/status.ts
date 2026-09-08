@@ -62,10 +62,6 @@ function truncateStatusText(value: string, limit = 1_000): string {
 	return value.length <= limit ? value : `${value.slice(0, limit - 1)}…`;
 }
 
-function tokenSum(items: { tokenCount: number }[]): number {
-	return items.reduce((sum, item) => sum + item.tokenCount, 0);
-}
-
 function addedSuffix(count: number): string | undefined {
 	return count > 0 ? `+${count.toLocaleString()}` : undefined;
 }
@@ -90,8 +86,6 @@ export function registerStatusCommand(pi: ExtensionAPI, runtime: Runtime): void 
 			const full = fullProjection(entries);
 			const drift = diffProjection(visible, full);
 
-			const visibleObservationTokens = tokenSum(visible.observations);
-			const visibleSummaryTokens = tokenSum(visible.summaries);
 			const pools = partitionMemoryPools(folded.activeObservations, folded.activeSummaries, runtime.config.newMemoryPoolMaxTokens);
 			const observationLine = appendSuffixes(
 				`Observations: ${folded.observations.length} recorded / ${folded.activeObservations.length} active / ${visible.observations.length} visible`,
@@ -126,10 +120,9 @@ export function registerStatusCommand(pi: ExtensionAPI, runtime: Runtime): void 
 				`Observer source backlog: ~${obsProgress.toLocaleString()} / ${runtime.config.observeAfterTokens.toLocaleString()} tokens (${pct(obsProgress, runtime.config.observeAfterTokens)}%)`,
 				`Summarizer trigger:      old pool ~${pools.oldTokens.toLocaleString()} / ${summarizerTrigger.toLocaleString()} tokens (${pct(pools.oldTokens, summarizerTrigger)}%)`,
 				`Automatic compaction source backlog: ~${compactionProgress.toLocaleString()} / ${compactThreshold.toLocaleString()} tokens (${pct(compactionProgress, compactThreshold)}%; injected memory excluded)`,
-				`Visible observation pool: ~${visibleObservationTokens.toLocaleString()} tokens`,
+				`Active memory total:     ~${pools.totalTokens.toLocaleString()} tokens (observations + summaries; split below)`,
 				`New memory pool:         ~${pools.newTokens.toLocaleString()} / ${runtime.config.newMemoryPoolMaxTokens.toLocaleString()} protection-budget tokens (${pct(pools.newTokens, runtime.config.newMemoryPoolMaxTokens)}%; newest memory always protected whole)`,
-				`Old memory pool:         ~${pools.oldTokens.toLocaleString()} / ${runtime.config.oldMemoryPoolTargetTokens.toLocaleString()} advisory target tokens (${pct(pools.oldTokens, runtime.config.oldMemoryPoolTargetTokens)}%)`,
-				`Summary pool:            ~${visibleSummaryTokens.toLocaleString()} visible tokens`,
+				`Old memory pool:         ~${pools.oldTokens.toLocaleString()} / ${runtime.config.oldMemoryPoolTargetTokens.toLocaleString()} advisory target tokens (${pct(pools.oldTokens, runtime.config.oldMemoryPoolTargetTokens)}%; observations + summaries)`,
 				`Summarizer:              ${runtime.config.summarizerEnabled === false ? "disabled" : "enabled"}; retrigger after +${runtime.config.summarizerRetriggerTokens.toLocaleString()} old-pool tokens / sample above ~${summarizerSamplingTokens.toLocaleString()} tokens`,
 				`Summarizer model:        ${configuredModelLabel(runtime.configuredMemoryWorkerModel("summarizer"))}`,
 				`Observer model:          ${configuredModelLabel(runtime.configuredMemoryWorkerModel("observer"))}`,
