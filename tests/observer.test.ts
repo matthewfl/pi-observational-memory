@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeSourceEntryIds, OBSERVATION_TIMESTAMP_PATTERN, ObserverStreamError, runObserver } from "../src/agents/observer/agent.js";
+import { normalizeSourceEntryIds, OBSERVATION_TIMESTAMP_PATTERN, OBSERVER_MAX_LENGTH_ATTEMPTS, ObserverStreamError, runObserver } from "../src/agents/observer/agent.js";
 import { estimateStringTokens } from "../src/tokens.js";
 import { OBSERVER_AGENT_LOOP_MAX_TOKENS } from "../src/model-budget.js";
 
@@ -235,17 +235,22 @@ describe("runObserver", () => {
 		expect(reasonings).toEqual(["high", "minimal"]);
 	});
 
-	it("rejects a zero-observation output-limit stop instead of treating it as clean coverage", async () => {
+	it("rejects after four zero-observation output-limit attempts instead of retrying forever", async () => {
+		let invocations = 0;
 		const loop = (() => ({
 			async *[Symbol.asyncIterator]() {
 				yield { type: "message_end", message: { role: "assistant", content: [], stopReason: "length" } };
 			},
-			result: async () => [],
+			result: async () => {
+				invocations++;
+				return [];
+			},
 		})) as any;
 		await expect(runObserver({ ...baseArgs, agentLoop: loop })).rejects.toMatchObject({
 			stopReason: "length",
-			message: expect.stringContaining("reached the output limit twice"),
+			message: expect.stringContaining(`reached the output limit ${OBSERVER_MAX_LENGTH_ATTEMPTS} times`),
 		});
+		expect(invocations).toBe(OBSERVER_MAX_LENGTH_ATTEMPTS);
 	});
 
 	it("uses the expanded observer output allowance when the model supports it", async () => {

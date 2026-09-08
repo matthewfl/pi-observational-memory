@@ -38,12 +38,12 @@ describe("renderObserver", () => {
 			backlogTokens: 200,
 			sourceEntryIds: ["source-a"],
 			summary: "Chunk covered.",
-			error: "provider reached the output limit twice",
+			error: "provider reached the output limit 4 times",
 		});
 
 		expect(output).toContain("ended 1970-01-01T00:00:04.500Z after 3s");
 		expect(output).toContain("Completion summary");
-		expect(output).toContain("provider reached the output limit twice");
+		expect(output).toContain("provider reached the output limit 4 times");
 	});
 	it("registers /om:view observer and renders the launch-local active run", async () => {
 		let handler: ((args: unknown, ctx: any) => Promise<void>) | undefined;

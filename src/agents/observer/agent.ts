@@ -74,6 +74,8 @@ const RecordObservationsSchema = Type.Object({
 
 type RecordObservationsArgs = Static<typeof RecordObservationsSchema>;
 
+export const OBSERVER_MAX_LENGTH_ATTEMPTS = 4;
+
 /** A terminal provider/agent-loop failure that must not advance observation coverage. */
 export class ObserverStreamError extends Error {
 	readonly stopReason: string;
@@ -218,7 +220,7 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 	const loop = args.agentLoop ?? agentLoop;
 	const history: AgentMessage[] = [];
 	let terminalFailure: { stopReason: string; errorMessage?: string } | undefined;
-	let lengthRetryAttempted = false;
+	let lengthAttempts = 0;
 	const runInvocation = async (prompt: Message, afterLength = false): Promise<void> => {
 		const context: AgentContext = {
 			systemPrompt: OBSERVER_SYSTEM,
@@ -265,8 +267,8 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 	};
 
 	await runInvocation(initialPrompt);
-	if (accumulated.size === 0 && terminalFailure?.stopReason === "length") {
-		lengthRetryAttempted = true;
+	if (terminalFailure?.stopReason === "length") lengthAttempts = 1;
+	while (accumulated.size === 0 && terminalFailure?.stopReason === "length" && lengthAttempts < OBSERVER_MAX_LENGTH_ATTEMPTS) {
 		// A provider can impose a lower output ceiling than the advertised model
 		// maximum. agentLoop stops on `length` when no tool call was completed; it
 		// does not automatically send a continuation request. Preserve the partial
@@ -275,7 +277,8 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 		// assistant text at the LLM boundary because some provider templates strip
 		// historical reasoning; encrypted thinking retains its opaque structure.
 		// Then append a short tool-focused instruction and reduce reasoning to
-		// minimal. A second length stop fails forward at the bounded-chunk level.
+		// minimal. The bounded attempt limit prevents pathological chunks from
+		// consuming background tokens forever.
 		terminalFailure = undefined;
 		const retryPrompt: Message = {
 			role: "user",
@@ -283,6 +286,10 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 			timestamp: Date.now(),
 		};
 		await runInvocation(retryPrompt, true);
+		// runInvocation mutates this through its async stream callbacks; TypeScript
+		// cannot infer that mutation after the explicit reset above.
+		const retryFailure = terminalFailure as { stopReason: string; errorMessage?: string } | undefined;
+		if (retryFailure?.stopReason === "length") lengthAttempts++;
 	}
 	if (accumulated.size === 0 && !doneCalled && !terminalFailure && rejectedTotal === 0) {
 		const reminder: Message = {
@@ -298,8 +305,8 @@ IMPORTANT: Now call record_observations to record the useful new observations fr
 	// zero-observation stop is also a valid empty result after the reminder;
 	// actual stream failures, truncation, and malformed records still throw.
 	if (accumulated.size === 0 && terminalFailure) {
-		const detail = terminalFailure.stopReason === "length" && lengthRetryAttempted
-			? `provider reached the output limit twice without recording an observation (effective max output request: ${baseConfig.maxTokens} tokens)`
+		const detail = terminalFailure.stopReason === "length" && lengthAttempts > 0
+			? `provider reached the output limit ${lengthAttempts} times without recording an observation (effective max output request: ${baseConfig.maxTokens} tokens)`
 			: terminalFailure.errorMessage;
 		throw new ObserverStreamError(terminalFailure.stopReason, detail);
 	}
