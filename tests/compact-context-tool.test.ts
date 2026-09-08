@@ -36,8 +36,18 @@ describe("compact_context tool", () => {
 		expect(tool.parameters.properties.short_continuation_prompt).toMatchObject({
 			type: "string",
 			minLength: 1,
-			maxLength: 1_000,
 		});
+		expect(tool.parameters.properties.short_continuation_prompt.maxLength).toBeUndefined();
+	});
+
+	it("accepts a continuation prompt longer than the former 1,000-character limit", async () => {
+		const state = runtime();
+		const tool = createCompactContextTool(state as any);
+		const continuation = `Continue with this retained plan: ${"x".repeat(2_000)}`;
+
+		await tool.execute("tool-long", { short_continuation_prompt: continuation }, undefined as any, undefined as any, {} as any);
+
+		expect(state.compactContinuationPrompt).toBe(continuation);
 	});
 
 	it("schedules compaction with a post-compaction continuation and terminates the current tool turn", async () => {
