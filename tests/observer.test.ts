@@ -81,6 +81,10 @@ describe("runObserver", () => {
 
 		expect(systemPrompt).toContain("Preserve user assertions exactly");
 		expect(systemPrompt).toContain("Detail preservation");
+		expect(systemPrompt).toContain("Preserve useful concrete details first");
+		expect(systemPrompt).toContain("not a high-level conversation-summary task");
+		expect(systemPrompt).toContain("useful inputs, outputs, discoveries, and final conclusion");
+		expect(systemPrompt).toContain("A vague topic summary is not a substitute");
 		expect(systemPrompt).toContain("Frame state changes as supersession");
 		expect(systemPrompt).toContain("sourceEntryIds");
 		expect(systemPrompt).toContain("zero observations");
