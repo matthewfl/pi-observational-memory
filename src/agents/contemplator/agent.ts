@@ -1150,7 +1150,7 @@ export class Contemplator {
 				this.markTipPersisted(ctx);
 				debugLog(result.outcome === "proposal" ? "reviewer.proposal_created" : "reviewer.no_proposal", { reviewRequestId: request.id, reviewMemoryId: result.id, scope: result.scope });
 				if (result.outcome === "proposal") {
-					const notice = `BACKGROUND ${result.scope.toUpperCase()} REVIEW PROPOSAL [${result.id}]\n\n${result.summary}\n\nRecall memory [${result.id}] to read the full conceptual proposal when it is relevant.\n\nThis is advisory. Evaluate it against the actual environment and current work.`;
+					const notice = `BACKGROUND ${result.scope.toUpperCase()} REVIEW PROPOSAL [${result.id}]\n\nIMPORTANT: This is only an abbreviated notice, not the full proposal. When this proposal is relevant to the current work, call the recall tool with memory id [${result.id}] before deciding whether or how to act on it.\n\nSUMMARY:\n${result.summary}\n\nThis is advisory. After recalling memory [${result.id}], evaluate the full proposal against the actual environment and current work.`;
 					// As with probes, triggerTurn must be omitted or Pi 0.84+ bypasses
 					// the streaming steer queue and the active run never sees this message.
 					this.pi.sendMessage({ customType: REVIEW_PROPOSAL_MESSAGE, content: notice, display: this.runtime.config.showContemplatorMessages, details: { version: 1, reviewRequestId: request.id, reviewMemoryId: result.id, scope: result.scope } }, { deliverAs: "steer" });

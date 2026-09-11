@@ -1,6 +1,6 @@
 {
   "name": "@matthewfl/pi-contemplator",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "A Pi extension that keeps long-running agentic sessions on track with background memory, contemplation, and structural review.",
   "type": "module",
   "license": "MIT",

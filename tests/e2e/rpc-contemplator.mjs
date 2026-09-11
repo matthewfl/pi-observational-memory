@@ -389,6 +389,8 @@ class MockModelServer {
 		}
 		if (scenario === "SCENARIO_PROPOSAL") {
 			assert(serialized.includes("BACKGROUND WORKFLOW REVIEW PROPOSAL"), "Review proposal notice was absent from the next main-agent request");
+			assert(serialized.includes("only an abbreviated notice, not the full proposal"), "Review notice did not distinguish its summary from the full proposal");
+			assert(serialized.includes("call the recall tool with memory id"), "Review notice did not direct the main agent to recall the full proposal");
 			return sendSse(res, { text: "PROPOSAL_RECEIVED_BY_MAIN_AGENT" });
 		}
 		throw new Error(`Unexpected extra main request for ${scenario}`);
